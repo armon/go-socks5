@@ -12,7 +12,7 @@ func TestDNSResolver(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !addr.IP.IsLoopback() {
+	if !addr.IsLoopback() {
 		t.Fatalf("expected loopback")
 	}
 }

@@ -6,12 +6,16 @@ import (
 
 // NameResolver is used to implement custom name resolution
 type NameResolver interface {
-	Resolve(name string) (*net.IPAddr, error)
+	Resolve(name string) (net.IP, error)
 }
 
 // DNSResolver uses the system DNS to resolve host names
 type DNSResolver struct{}
 
-func (d DNSResolver) Resolve(name string) (*net.IPAddr, error) {
-	return net.ResolveIPAddr("ip", name)
+func (d DNSResolver) Resolve(name string) (net.IP, error) {
+	addr, err := net.ResolveIPAddr("ip", name)
+	if err != nil {
+		return nil, err
+	}
+	return addr.IP, err
 }
