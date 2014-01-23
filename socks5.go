@@ -82,28 +82,28 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// Read the version byte
 	version := []byte{0}
 	if _, err := bufConn.Read(version); err != nil {
-		log.Printf("[ERR] Failed to get version byte: %v", err)
+		log.Printf("[ERR] socks: Failed to get version byte: %v", err)
 		return err
 	}
 
 	// Ensure we are compatible
 	if version[0] != socks5Version {
 		err := fmt.Errorf("Unsupported SOCKS version: %v", version)
-		log.Printf("[ERR] %v", err)
+		log.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
 	// Authenticate the connection
 	if err := s.authenticate(conn, bufConn); err != nil {
 		err = fmt.Errorf("Failed to authenticate: %v", err)
-		log.Printf("[ERR] %v", err)
+		log.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
 	// Process the client request
 	if err := s.handleRequest(conn, bufConn); err != nil {
 		err = fmt.Errorf("Failed to handle request: %v", err)
-		log.Printf("[ERR] %v", err)
+		log.Printf("[ERR] socks: %v", err)
 		return err
 	}
 

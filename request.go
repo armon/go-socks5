@@ -289,7 +289,7 @@ func proxy(name string, dst io.Writer, src io.Reader, errCh chan error) {
 
 	// Log, and sleep. This is jank but allows the otherside
 	// to finish a pending copy
-	log.Printf("[DEBUG] Copied %d bytes to %s", n, name)
+	log.Printf("[DEBUG] socks: Copied %d bytes to %s", n, name)
 	time.Sleep(10 * time.Millisecond)
 
 	// Send any errors
