@@ -7,13 +7,13 @@ import (
 // RuleSet is used to provide custom rules to allow or prohibit actions
 type RuleSet interface {
 	// AllowConnect is used to filter connect requests
-	AllowConnect(dstIP *net.IPAddr, dstPort int, srcIP *net.IPAddr, srcPort int) bool
+	AllowConnect(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
 
 	// AllowBind is used to filter bind requests
-	AllowBind(dstIP *net.IPAddr, dstPort int, srcIP *net.IPAddr, srcPort int) bool
+	AllowBind(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
 
 	// AllowAssociate is used to filter associate requests
-	AllowAssociate(dstIP *net.IPAddr, dstPort int, srcIP *net.IPAddr, srcPort int) bool
+	AllowAssociate(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
 }
 
 // PermitAll is an returns a RuleSet which allows all types of connections
@@ -29,14 +29,14 @@ type PermitCommand struct {
 	EnableAssociate bool
 }
 
-func (p *PermitCommand) AllowConnect(*net.IPAddr, int, *net.IPAddr, int) bool {
+func (p *PermitCommand) AllowConnect(net.IP, int, net.IP, int) bool {
 	return p.EnableConnect
 }
 
-func (p *PermitCommand) AllowBind(*net.IPAddr, int, *net.IPAddr, int) bool {
+func (p *PermitCommand) AllowBind(net.IP, int, net.IP, int) bool {
 	return p.EnableBind
 }
 
-func (p *PermitCommand) AllowAssociate(*net.IPAddr, int, *net.IPAddr, int) bool {
+func (p *PermitCommand) AllowAssociate(net.IP, int, net.IP, int) bool {
 	return p.EnableAssociate
 }
