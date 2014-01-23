@@ -143,8 +143,8 @@ func (s *Server) handleConnect(conn conn, bufConn io.Reader, dest *addrSpec) err
 
 	// Start proxying
 	errCh := make(chan error, 2)
-	go proxy("client", target, bufConn, errCh)
-	go proxy("target", conn, target, errCh)
+	go proxy("target", target, bufConn, errCh)
+	go proxy("client", conn, target, errCh)
 
 	// Wait
 	select {
@@ -289,7 +289,7 @@ func proxy(name string, dst io.Writer, src io.Reader, errCh chan error) {
 
 	// Log, and sleep. This is jank but allows the otherside
 	// to finish a pending copy
-	log.Printf("[DEBUG] Copied %d bytes for %s", n, name)
+	log.Printf("[DEBUG] Copied %d bytes to %s", n, name)
 	time.Sleep(10 * time.Millisecond)
 
 	// Send any errors
