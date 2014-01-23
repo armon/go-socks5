@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net"
+	"strings"
 )
 
 const (
@@ -92,6 +94,9 @@ func (s *Server) handleRequest(conn net.Conn, bufConn io.Reader) error {
 	case associateCommand:
 		return s.handleAssociate(conn, bufConn, dest)
 	default:
+		if err := sendReply(conn, commandNotSupported, nil); err != nil {
+			return fmt.Errorf("Failed to send reply: %v", err)
+		}
 		return fmt.Errorf("Unsupported command: %v", header[1])
 	}
 }
@@ -107,7 +112,39 @@ func (s *Server) handleConnect(conn net.Conn, bufConn io.Reader, dest *addrSpec)
 		return fmt.Errorf("Connect to %v blocked by rules", dest)
 	}
 
-	return nil
+	// Attempt to connect
+	addr := net.TCPAddr{IP: dest.ip, Port: dest.port}
+	target, err := net.DialTCP("tcp", nil, &addr)
+	if err != nil {
+		msg := err.Error()
+		resp := hostUnreachable
+		if strings.Contains(msg, "refused") {
+			resp = connectionRefused
+		} else if strings.Contains(msg, "network is unreachable") {
+			resp = networkUnreachable
+		}
+		if err := sendReply(conn, resp, dest); err != nil {
+			return fmt.Errorf("Failed to send reply: %v", err)
+		}
+		return fmt.Errorf("Connect to %v failed: %v", dest, err)
+	}
+	defer target.Close()
+
+	// Send success
+	if err := sendReply(conn, successReply, dest); err != nil {
+		return fmt.Errorf("Failed to send reply: %v", err)
+	}
+
+	// Start proxying
+	errCh := make(chan error, 2)
+	go proxy("client", target, bufConn, errCh)
+	go proxy("target", conn, target, errCh)
+
+	// Wait
+	select {
+	case e := <-errCh:
+		return e
+	}
 }
 
 // handleBind is used to handle a connect command
@@ -121,6 +158,10 @@ func (s *Server) handleBind(conn net.Conn, bufConn io.Reader, dest *addrSpec) er
 		return fmt.Errorf("Bind to %v blocked by rules", dest)
 	}
 
+	// TODO: Support bind
+	if err := sendReply(conn, commandNotSupported, nil); err != nil {
+		return fmt.Errorf("Failed to send reply: %v", err)
+	}
 	return nil
 }
 
@@ -135,6 +176,10 @@ func (s *Server) handleAssociate(conn net.Conn, bufConn io.Reader, dest *addrSpe
 		return fmt.Errorf("Associate to %v blocked by rules", dest)
 	}
 
+	// TODO: Support associate
+	if err := sendReply(conn, commandNotSupported, nil); err != nil {
+		return fmt.Errorf("Failed to send reply: %v", err)
+	}
 	return nil
 }
 
@@ -228,4 +273,13 @@ func sendReply(w io.Writer, resp uint8, addr *addrSpec) error {
 	// Send the message
 	_, err := w.Write(msg)
 	return err
+}
+
+// proxy is used to suffle data from src to destination, and sends errors
+// down a dedicated channel
+func proxy(name string, dst io.WriteCloser, src io.Reader, errCh chan error) {
+	defer dst.Close()
+	n, err := io.Copy(dst, src)
+	errCh <- err
+	log.Printf("[DEBUG] Copied %d bytes for %s", n, name)
 }

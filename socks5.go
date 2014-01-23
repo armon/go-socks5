@@ -24,6 +24,9 @@ type Config struct {
 	// Rules is provided to enable custom logic around permitting
 	// various commands. If not provided, PermitAll is used.
 	Rules RuleSet
+
+	// BindIP is used for bind or udp associate
+	BindIP net.IP
 }
 
 // Server is reponsible for accepting connections and handling
