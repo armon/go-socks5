@@ -25,6 +25,11 @@ type Config struct {
 	// various commands. If not provided, PermitAll is used.
 	Rules RuleSet
 
+	// Rewriter can be used to transparently rewrite addresses.
+	// This is invoked before the RuleSet is invoked.
+	// Defaults to NoRewrite.
+	Rewriter AddressRewriter
+
 	// BindIP is used for bind or udp associate
 	BindIP net.IP
 }
