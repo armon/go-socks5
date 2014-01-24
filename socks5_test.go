@@ -86,8 +86,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 		0,
 		1,
 		127, 0, 0, 1,
-		port[0],
-		port[1],
+		0, 0,
 		'p', 'o', 'n', 'g',
 	}
 	out := make([]byte, len(expected))
@@ -96,6 +95,10 @@ func TestSOCKS5_Connect(t *testing.T) {
 	if _, err := io.ReadAtLeast(conn, out, len(out)); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	// Ignore the port
+	out[12] = 0
+	out[13] = 0
 
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %v", out)

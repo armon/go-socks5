@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -88,7 +87,7 @@ func (s *Server) handleRequest(conn conn, bufConn io.Reader) error {
 	if dest.FQDN != "" {
 		addr, err := s.config.Resolver.Resolve(dest.FQDN)
 		if err != nil {
-			if err := sendReply(conn, hostUnreachable, dest); err != nil {
+			if err := sendReply(conn, hostUnreachable, nil); err != nil {
 				return fmt.Errorf("Failed to send reply: %v", err)
 			}
 			return fmt.Errorf("Failed to resolve destination '%v': %v", dest.FQDN, err)
@@ -111,7 +110,7 @@ func (s *Server) handleRequest(conn conn, bufConn io.Reader) error {
 	case associateCommand:
 		return s.handleAssociate(conn, bufConn, dest, realDest)
 	default:
-		if err := sendReply(conn, commandNotSupported, dest); err != nil {
+		if err := sendReply(conn, commandNotSupported, nil); err != nil {
 			return fmt.Errorf("Failed to send reply: %v", err)
 		}
 		return fmt.Errorf("Unsupported command: %v", header[1])
@@ -123,7 +122,7 @@ func (s *Server) handleConnect(conn conn, bufConn io.Reader, dest, realDest *Add
 	// Check if this is allowed
 	client := conn.RemoteAddr().(*net.TCPAddr)
 	if !s.config.Rules.AllowConnect(realDest.IP, realDest.Port, client.IP, client.Port) {
-		if err := sendReply(conn, ruleFailure, dest); err != nil {
+		if err := sendReply(conn, ruleFailure, nil); err != nil {
 			return fmt.Errorf("Failed to send reply: %v", err)
 		}
 		return fmt.Errorf("Connect to %v blocked by rules", dest)
@@ -140,7 +139,7 @@ func (s *Server) handleConnect(conn conn, bufConn io.Reader, dest, realDest *Add
 		} else if strings.Contains(msg, "network is unreachable") {
 			resp = networkUnreachable
 		}
-		if err := sendReply(conn, resp, dest); err != nil {
+		if err := sendReply(conn, resp, nil); err != nil {
 			return fmt.Errorf("Failed to send reply: %v", err)
 		}
 		return fmt.Errorf("Connect to %v failed: %v", dest, err)
@@ -148,7 +147,9 @@ func (s *Server) handleConnect(conn conn, bufConn io.Reader, dest, realDest *Add
 	defer target.Close()
 
 	// Send success
-	if err := sendReply(conn, successReply, dest); err != nil {
+	local := target.LocalAddr().(*net.TCPAddr)
+	bind := AddrSpec{IP: local.IP, Port: local.Port}
+	if err := sendReply(conn, successReply, &bind); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
 
@@ -169,14 +170,14 @@ func (s *Server) handleBind(conn conn, bufConn io.Reader, dest, realDest *AddrSp
 	// Check if this is allowed
 	client := conn.RemoteAddr().(*net.TCPAddr)
 	if !s.config.Rules.AllowBind(realDest.IP, realDest.Port, client.IP, client.Port) {
-		if err := sendReply(conn, ruleFailure, dest); err != nil {
+		if err := sendReply(conn, ruleFailure, nil); err != nil {
 			return fmt.Errorf("Failed to send reply: %v", err)
 		}
 		return fmt.Errorf("Bind to %v blocked by rules", dest)
 	}
 
 	// TODO: Support bind
-	if err := sendReply(conn, commandNotSupported, dest); err != nil {
+	if err := sendReply(conn, commandNotSupported, nil); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
 	return nil
@@ -187,14 +188,14 @@ func (s *Server) handleAssociate(conn conn, bufConn io.Reader, dest, realDest *A
 	// Check if this is allowed
 	client := conn.RemoteAddr().(*net.TCPAddr)
 	if !s.config.Rules.AllowAssociate(realDest.IP, realDest.Port, client.IP, client.Port) {
-		if err := sendReply(conn, ruleFailure, dest); err != nil {
+		if err := sendReply(conn, ruleFailure, nil); err != nil {
 			return fmt.Errorf("Failed to send reply: %v", err)
 		}
 		return fmt.Errorf("Associate to %v blocked by rules", dest)
 	}
 
 	// TODO: Support associate
-	if err := sendReply(conn, commandNotSupported, dest); err != nil {
+	if err := sendReply(conn, commandNotSupported, nil); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
 	return nil
@@ -247,7 +248,7 @@ func readAddrSpec(r io.Reader) (*AddrSpec, error) {
 	if _, err := io.ReadAtLeast(r, port, 2); err != nil {
 		return nil, err
 	}
-	d.Port = int(binary.BigEndian.Uint16(port))
+	d.Port = (int(port[0]) << 8) | int(port[1])
 
 	return d, nil
 }
@@ -290,7 +291,8 @@ func sendReply(w io.Writer, resp uint8, addr *AddrSpec) error {
 	msg[2] = 0 // Reserved
 	msg[3] = addrType
 	copy(msg[4:], addrBody)
-	binary.BigEndian.PutUint16(msg[4+len(addrBody):], uint16(addrPort))
+	msg[4+len(addrBody)] = byte(addrPort >> 8)
+	msg[4+len(addrBody)+1] = byte(addrPort & 0xff)
 
 	// Send the message
 	_, err := w.Write(msg)

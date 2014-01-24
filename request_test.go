@@ -76,11 +76,15 @@ func TestRequest_Connect(t *testing.T) {
 		0,
 		1,
 		127, 0, 0, 1,
-		port[0],
-		port[1],
+		0, 0,
 		'p', 'o', 'n', 'g',
 	}
+
+	// Ignore the port for both
+	out[8] = 0
+	out[9] = 0
+
 	if !bytes.Equal(out, expected) {
-		t.Fatalf("bad: %v", out)
+		t.Fatalf("bad: %v %v", out, expected)
 	}
 }
