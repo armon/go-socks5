@@ -83,7 +83,7 @@ func (s *Server) handleRequest(conn conn, bufConn io.Reader) error {
 	if dest.fqdn != "" {
 		addr, err := s.config.Resolver.Resolve(dest.fqdn)
 		if err != nil {
-			if err := sendReply(conn, hostUnreachable, nil); err != nil {
+			if err := sendReply(conn, hostUnreachable, dest); err != nil {
 				return fmt.Errorf("Failed to send reply: %v", err)
 			}
 			return fmt.Errorf("Failed to resolve destination '%v': %v", dest.fqdn, err)
@@ -246,6 +246,7 @@ func sendReply(w io.Writer, resp uint8, addr *addrSpec) error {
 	// Format the address
 	var addrType uint8
 	var addrBody []byte
+	var addrPort uint16
 	switch {
 	case addr == nil:
 		addrType = 0
@@ -254,14 +255,17 @@ func sendReply(w io.Writer, resp uint8, addr *addrSpec) error {
 	case addr.fqdn != "":
 		addrType = fqdnAddress
 		addrBody = append([]byte{byte(len(addr.fqdn))}, addr.fqdn...)
+		addrPort = uint16(addr.port)
 
 	case addr.ip.To4() != nil:
 		addrType = ipv4Address
 		addrBody = []byte(addr.ip.To4())
+		addrPort = uint16(addr.port)
 
 	case addr.ip.To16() != nil:
 		addrType = ipv6Address
 		addrBody = []byte(addr.ip.To16())
+		addrPort = uint16(addr.port)
 
 	default:
 		return fmt.Errorf("Failed to format address: %v", addr)
@@ -274,7 +278,7 @@ func sendReply(w io.Writer, resp uint8, addr *addrSpec) error {
 	msg[2] = 0 // Reserved
 	msg[3] = addrType
 	copy(msg[4:], addrBody)
-	binary.BigEndian.PutUint16(msg[4+len(addrBody):], uint16(addr.port))
+	binary.BigEndian.PutUint16(msg[4+len(addrBody):], uint16(addrPort))
 
 	// Send the message
 	_, err := w.Write(msg)
