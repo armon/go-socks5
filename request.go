@@ -260,8 +260,9 @@ func sendReply(w io.Writer, resp uint8, addr *AddrSpec) error {
 	var addrPort uint16
 	switch {
 	case addr == nil:
-		addrType = 0
-		addrBody = nil
+		addrType = ipv4Address
+		addrBody = []byte{0, 0, 0, 0}
+		addrPort = 0
 
 	case addr.FQDN != "":
 		addrType = fqdnAddress
