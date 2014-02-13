@@ -19,7 +19,7 @@ const (
 )
 
 const (
-	successReply uint8 = 0
+	successReply uint8 = iota
 	serverFailure
 	ruleFailure
 	networkUnreachable

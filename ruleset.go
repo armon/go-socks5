@@ -16,9 +16,14 @@ type RuleSet interface {
 	AllowAssociate(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
 }
 
-// PermitAll is an returns a RuleSet which allows all types of connections
+// PermitAll returns a RuleSet which allows all types of connections
 func PermitAll() RuleSet {
 	return &PermitCommand{true, true, true}
+}
+
+// PermitNone returns a RuleSet which disallows all types of connections
+func PermitNone() RuleSet {
+	return &PermitCommand{false, false, false}
 }
 
 // PermitCommand is an implementation of the RuleSet which
