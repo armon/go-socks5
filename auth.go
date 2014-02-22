@@ -19,42 +19,42 @@ var (
 	NoSupportedAuth = fmt.Errorf("No supported authentication mechanism")
 )
 
-// authenticate is used to handle connection authentication
-func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) error {
-	// Get the methods
-	methods, err := readMethods(bufConn)
-	if err != nil {
-		return fmt.Errorf("Failed to get auth methods: %v", err)
-	}
-
-	// Determine what is supported
-	supportUserPass := s.config.Credentials != nil
-
-	// Select a usable method
-	for _, method := range methods {
-		if method == noAuth && !supportUserPass {
-			return noAuthMode(conn)
-		}
-		if method == userPassAuth && supportUserPass {
-			return s.userPassAuth(conn, bufConn)
-		}
-	}
-
-	// No usable method found
-	return noAcceptableAuth(conn)
+type Authenticator interface {
+	Authenticate(reader io.Reader, writer io.Writer) error
+	GetCode() uint8
 }
 
-// userPassAuth is used to handle username/password based
+// NoAuthAuthenticator is used to handle the "No Authentication" mode
+type NoAuthAuthenticator struct {}
+
+func (a NoAuthAuthenticator) GetCode() uint8 {
+	return noAuth
+}
+
+func (a NoAuthAuthenticator) Authenticate(reader io.Reader, writer io.Writer) error {
+	_, err := writer.Write([]byte{socks5Version, noAuth})
+	return err
+}
+
+// UserPassAuthenticator is used to handle username/password based
 // authentication
-func (s *Server) userPassAuth(conn io.Writer, bufConn io.Reader) error {
+type UserPassAuthenticator struct {
+	Credentials CredentialStore
+}
+
+func (a UserPassAuthenticator) GetCode() uint8 {
+	return userPassAuth
+}
+
+func (a UserPassAuthenticator) Authenticate(reader io.Reader, writer io.Writer) error {
 	// Tell the client to use user/pass auth
-	if _, err := conn.Write([]byte{socks5Version, userPassAuth}); err != nil {
+	if _, err := writer.Write([]byte{socks5Version, userPassAuth}); err != nil {
 		return err
 	}
 
 	// Get the version and username length
 	header := []byte{0, 0}
-	if _, err := io.ReadAtLeast(bufConn, header, 2); err != nil {
+	if _, err := io.ReadAtLeast(reader, header, 2); err != nil {
 		return err
 	}
 
@@ -66,29 +66,29 @@ func (s *Server) userPassAuth(conn io.Writer, bufConn io.Reader) error {
 	// Get the user name
 	userLen := int(header[1])
 	user := make([]byte, userLen)
-	if _, err := io.ReadAtLeast(bufConn, user, userLen); err != nil {
+	if _, err := io.ReadAtLeast(reader, user, userLen); err != nil {
 		return err
 	}
 
 	// Get the password length
-	if _, err := bufConn.Read(header[:1]); err != nil {
+	if _, err := reader.Read(header[:1]); err != nil {
 		return err
 	}
 
 	// Get the password
 	passLen := int(header[0])
 	pass := make([]byte, passLen)
-	if _, err := io.ReadAtLeast(bufConn, pass, passLen); err != nil {
+	if _, err := io.ReadAtLeast(reader, pass, passLen); err != nil {
 		return err
 	}
 
 	// Verify the password
-	if s.config.Credentials.Valid(string(user), string(pass)) {
-		if _, err := conn.Write([]byte{userAuthVersion, authSuccess}); err != nil {
+	if a.Credentials.Valid(string(user), string(pass)) {
+		if _, err := writer.Write([]byte{userAuthVersion, authSuccess}); err != nil {
 			return err
 		}
 	} else {
-		if _, err := conn.Write([]byte{userAuthVersion, authFailure}); err != nil {
+		if _, err := writer.Write([]byte{userAuthVersion, authFailure}); err != nil {
 			return err
 		}
 		return UserAuthFailed
@@ -96,13 +96,32 @@ func (s *Server) userPassAuth(conn io.Writer, bufConn io.Reader) error {
 
 	// Done
 	return nil
+
 }
 
-// noAuth is used to handle the "No Authentication" mode
-func noAuthMode(conn io.Writer) error {
-	_, err := conn.Write([]byte{socks5Version, noAuth})
-	return err
+
+
+// authenticate is used to handle connection authentication
+func (s *Server) authenticate(conn io.Writer, bufConn io.Reader) error {
+	// Get the methods
+	methods, err := readMethods(bufConn)
+	if err != nil {
+		return fmt.Errorf("Failed to get auth methods: %v", err)
+	}
+
+	// Select a usable method
+	for _, method := range methods {
+		cator, found := s.authMethods[method]
+		if found {
+			return cator.Authenticate(bufConn, conn)
+		}
+	}
+
+	// No usable method found
+	return noAcceptableAuth(conn)
 }
+
+
 
 // noAcceptableAuth is used to handle when we have no eligible
 // authentication mechanism

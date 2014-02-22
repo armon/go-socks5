@@ -10,7 +10,7 @@ func TestNoAuth(t *testing.T) {
 	req.Write([]byte{1, noAuth})
 	var resp bytes.Buffer
 
-	s := &Server{config: &Config{}}
+	s, _ := New(&Config{})
 	if err := s.authenticate(&resp, req); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -30,7 +30,11 @@ func TestPasswordAuth_Valid(t *testing.T) {
 	cred := StaticCredentials{
 		"foo": "bar",
 	}
-	s := &Server{config: &Config{Credentials: cred}}
+	
+	cator := UserPassAuthenticator{Credentials: cred}
+
+	s, _ := New(&Config{AuthMethods:[]Authenticator{cator}})
+
 	if err := s.authenticate(&resp, req); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -50,7 +54,8 @@ func TestPasswordAuth_Invalid(t *testing.T) {
 	cred := StaticCredentials{
 		"foo": "bar",
 	}
-	s := &Server{config: &Config{Credentials: cred}}
+	cator := UserPassAuthenticator{Credentials: cred}
+	s, _ := New(&Config{AuthMethods:[]Authenticator{cator}})
 	if err := s.authenticate(&resp, req); err != UserAuthFailed {
 		t.Fatalf("err: %v", err)
 	}
@@ -69,7 +74,9 @@ func TestNoSupportedAuth(t *testing.T) {
 	cred := StaticCredentials{
 		"foo": "bar",
 	}
-	s := &Server{config: &Config{Credentials: cred}}
+	cator := UserPassAuthenticator{Credentials: cred}
+
+	s, _ := New(&Config{AuthMethods:[]Authenticator{cator}})
 	if err := s.authenticate(&resp, req); err != NoSupportedAuth {
 		t.Fatalf("err: %v", err)
 	}

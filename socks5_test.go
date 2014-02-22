@@ -38,8 +38,9 @@ func TestSOCKS5_Connect(t *testing.T) {
 	creds := StaticCredentials{
 		"foo": "bar",
 	}
+	cator := UserPassAuthenticator{Credentials : creds}
 	conf := &Config{
-		Credentials: creds,
+		AuthMethods : []Authenticator{cator},
 	}
 	serv, err := New(conf)
 	if err != nil {
