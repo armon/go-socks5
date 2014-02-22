@@ -14,8 +14,14 @@ const (
 // Config is used to setup and configure a Server
 type Config struct {
 	// AuthMethods can be provided to implement custom authentication
-	// By default, "auth-less" mode is enabled. For password-based auth use UserPassAuthenticator.
+	// By default, "auth-less" mode is enabled.
+	// For password-based auth use UserPassAuthenticator.
 	AuthMethods []Authenticator
+
+	// If provided, username/password authentication is enabled,
+	// by appending a UserPassAuthenticator to AuthMethods. If not provided,
+	// and AUthMethods is nil, then "auth-less" mode is enabled.
+	Credentials CredentialStore
 
 	// Resolver can be provided to do custom name resolution.
 	// Defaults to DNSResolver if not provided.
@@ -37,15 +43,19 @@ type Config struct {
 // Server is reponsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
-	config *Config
+	config      *Config
 	authMethods map[uint8]Authenticator
 }
 
 // New creates a new Server and potentially returns an error
 func New(conf *Config) (*Server, error) {
 	// Ensure we have at least one authentication method enabled
-	if conf.AuthMethods == nil || len(conf.AuthMethods) == 0 {
-		conf.AuthMethods = []Authenticator{&NoAuthAuthenticator{}}
+	if len(conf.AuthMethods) == 0 {
+		if conf.Credentials != nil {
+			conf.AuthMethods = []Authenticator{&UserPassAuthenticator{conf.Credentials}}
+		} else {
+			conf.AuthMethods = []Authenticator{&NoAuthAuthenticator{}}
+		}
 	}
 
 	// Ensure we have a DNS resolver
