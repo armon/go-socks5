@@ -48,8 +48,9 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Make server
 	s := &Server{config: &Config{
-		Rules:    PermitAll(),
-		Resolver: DNSResolver{},
+		Rules:       PermitAll(),
+		Resolver:    DNSResolver{},
+		ConnectFunc: net.Dial,
 	}}
 
 	// Create the connect request
@@ -117,8 +118,9 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Make server
 	s := &Server{config: &Config{
-		Rules:    PermitNone(),
-		Resolver: DNSResolver{},
+		Rules:       PermitNone(),
+		Resolver:    DNSResolver{},
+		ConnectFunc: net.Dial,
 	}}
 
 	// Create the connect request

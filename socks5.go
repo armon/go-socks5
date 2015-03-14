@@ -11,6 +11,8 @@ const (
 	socks5Version = uint8(5)
 )
 
+type Connector func(net, address string) (net.Conn, error)
+
 // Config is used to setup and configure a Server
 type Config struct {
 	// AuthMethods can be provided to implement custom authentication
@@ -38,6 +40,10 @@ type Config struct {
 
 	// BindIP is used for bind or udp associate
 	BindIP net.IP
+
+	// ConnectFunc may be used as function which establishes connection
+	// with remote host while request handling
+	ConnectFunc Connector
 }
 
 // Server is reponsible for accepting connections and handling
@@ -66,6 +72,10 @@ func New(conf *Config) (*Server, error) {
 	// Ensure we have a rule set
 	if conf.Rules == nil {
 		conf.Rules = PermitAll()
+	}
+
+	if conf.ConnectFunc == nil {
+		conf.ConnectFunc = net.Dial
 	}
 
 	server := &Server{
