@@ -130,7 +130,8 @@ func (s *Server) handleConnect(conn conn, bufConn io.Reader, dest, realDest *Add
 
 	// Attempt to connect
 	addr := net.TCPAddr{IP: realDest.IP, Port: realDest.Port}
-	target, err := net.DialTCP("tcp", nil, &addr)
+	target, err := net.Dial("tcp", addr.String())
+
 	if err != nil {
 		msg := err.Error()
 		resp := hostUnreachable
