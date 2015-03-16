@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
+	"time"
 )
 
 const (
@@ -51,6 +53,7 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+	ch          chan bool
 }
 
 // New creates a new Server and potentially returns an error
@@ -80,6 +83,7 @@ func New(conf *Config) (*Server, error) {
 
 	server := &Server{
 		config: conf,
+		ch:     make(chan bool),
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)
@@ -102,6 +106,9 @@ func (s *Server) ListenAndServe(network, addr string) error {
 
 // Serve is used to serve connections from a listener
 func (s *Server) Serve(l net.Listener) error {
+	if ln, ok := l.(*net.TCPListener); ok {
+		return s.asyncServe(ln)
+	}
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -110,6 +117,42 @@ func (s *Server) Serve(l net.Listener) error {
 		go s.ServeConn(conn)
 	}
 	return nil
+}
+
+func (s *Server) asyncServe(l *net.TCPListener) error {
+	var wg sync.WaitGroup
+	var wait bool
+	for {
+		select {
+		case wait = <-s.ch:
+		default:
+			l.SetDeadline(time.Now().Add(1e9))
+			conn, err := l.Accept()
+			if err != nil {
+				if e, ok := err.(net.Error); ok && e.Timeout() {
+					continue
+				}
+				return err
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s.ServeConn(conn)
+			}()
+			continue
+		}
+		break
+	}
+	if wait {
+		log.Println("Waiting for established connections...")
+		wg.Wait()
+	}
+	l.Close()
+	return nil
+}
+
+func (s *Server) Stop(wait bool) {
+	s.ch <- wait
 }
 
 // ServeConn is used to serve a single connection.
