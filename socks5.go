@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 )
 
 const (
@@ -38,6 +39,10 @@ type Config struct {
 
 	// BindIP is used for bind or udp associate
 	BindIP net.IP
+
+	// Logger can be used to provide a custom log target.
+	// Defaults to stdout.
+	Logger *log.Logger
 }
 
 // Server is reponsible for accepting connections and handling
@@ -66,6 +71,11 @@ func New(conf *Config) (*Server, error) {
 	// Ensure we have a rule set
 	if conf.Rules == nil {
 		conf.Rules = PermitAll()
+	}
+
+	// Ensure we have a log target
+	if conf.Logger == nil {
+		conf.Logger = log.New(os.Stdout, "", log.LstdFlags)
 	}
 
 	server := &Server{
@@ -110,28 +120,28 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	// Read the version byte
 	version := []byte{0}
 	if _, err := bufConn.Read(version); err != nil {
-		log.Printf("[ERR] socks: Failed to get version byte: %v", err)
+		s.config.Logger.Printf("[ERR] socks: Failed to get version byte: %v", err)
 		return err
 	}
 
 	// Ensure we are compatible
 	if version[0] != socks5Version {
 		err := fmt.Errorf("Unsupported SOCKS version: %v", version)
-		log.Printf("[ERR] socks: %v", err)
+		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
 	// Authenticate the connection
 	if err := s.authenticate(conn, bufConn); err != nil {
 		err = fmt.Errorf("Failed to authenticate: %v", err)
-		log.Printf("[ERR] socks: %v", err)
+		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
 	// Process the client request
 	if err := s.handleRequest(conn, bufConn); err != nil {
 		err = fmt.Errorf("Failed to handle request: %v", err)
-		log.Printf("[ERR] socks: %v", err)
+		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
