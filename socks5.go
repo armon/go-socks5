@@ -132,14 +132,29 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// Authenticate the connection
-	if err := s.authenticate(conn, bufConn); err != nil {
+	authContext, err := s.authenticate(conn, bufConn)
+	if err != nil {
 		err = fmt.Errorf("Failed to authenticate: %v", err)
 		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
+	request, err := NewRequest(bufConn)
+	if err != nil {
+		if err == unrecognizedAddrType {
+			if err := sendReply(conn, addrTypeNotSupported, nil); err != nil {
+				return fmt.Errorf("Failed to send reply: %v", err)
+			}
+		}
+		return fmt.Errorf("Failed to read destination address: %v", err)
+	}
+	request.AuthContext = authContext
+	if client, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
+		request.RemoteAddr = &AddrSpec{IP: client.IP, Port: client.Port}
+	}
+
 	// Process the client request
-	if err := s.handleRequest(conn, bufConn); err != nil {
+	if err := s.handleRequest(request, conn); err != nil {
 		err = fmt.Errorf("Failed to handle request: %v", err)
 		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
