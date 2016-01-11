@@ -36,7 +36,7 @@ var (
 
 // AddressRewriter is used to rewrite a destination transparently
 type AddressRewriter interface {
-	Rewrite(addr *AddrSpec) *AddrSpec
+	Rewrite(request *Request) *AddrSpec
 }
 
 // AddrSpec is used to return the target AddrSpec
