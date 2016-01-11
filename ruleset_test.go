@@ -1,21 +1,19 @@
 package socks5
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestPermitCommand(t *testing.T) {
 	r := &PermitCommand{true, false, false}
 
-	if !r.AllowConnect(nil, 500, nil, 1000) {
+	if !r.Allow(&Request{Command: ConnectCommand}) {
 		t.Fatalf("expect connect")
 	}
 
-	if r.AllowBind(nil, 500, nil, 1000) {
+	if r.Allow(&Request{Command: BindCommand}) {
 		t.Fatalf("do not expect bind")
 	}
 
-	if r.AllowAssociate(nil, 500, nil, 1000) {
+	if r.Allow(&Request{Command: AssociateCommand}) {
 		t.Fatalf("do not expect associate")
 	}
 }
