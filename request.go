@@ -47,6 +47,23 @@ type AddrSpec struct {
 	Port int
 }
 
+// A Request represents request received by a server
+type Request struct {
+	// Protocol version
+	Version uint8
+	// Requested command
+	Command uint8
+	// AuthContext provided during negotiation
+	AuthContext *AuthContext
+	// AddrSpec of the the network that sent the request
+	RemoteAddr *AddrSpec
+	// AddrSpec of the desired destination
+	DestAddr *AddrSpec
+	// AddrSpec of the actual destination (might be affected by rewrite)
+	realDestAddr *AddrSpec
+	bufConn      io.Reader
+}
+
 type conn interface {
 	Write([]byte) (int, error)
 	RemoteAddr() net.Addr
