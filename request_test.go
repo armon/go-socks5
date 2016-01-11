@@ -56,19 +56,24 @@ func TestRequest_Connect(t *testing.T) {
 	}}
 
 	// Create the connect request
-	req := bytes.NewBuffer(nil)
-	req.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
+	buf := bytes.NewBuffer(nil)
+	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
 
 	port := []byte{0, 0}
 	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	req.Write(port)
+	buf.Write(port)
 
 	// Send a ping
-	req.Write([]byte("ping"))
+	buf.Write([]byte("ping"))
 
 	// Handle the request
 	resp := &MockConn{}
-	if err := s.handleRequest(resp, req); err != nil {
+	req, err := NewRequest(buf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := s.handleRequest(req, resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -126,19 +131,24 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	}}
 
 	// Create the connect request
-	req := bytes.NewBuffer(nil)
-	req.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
+	buf := bytes.NewBuffer(nil)
+	buf.Write([]byte{5, 1, 0, 1, 127, 0, 0, 1})
 
 	port := []byte{0, 0}
 	binary.BigEndian.PutUint16(port, uint16(lAddr.Port))
-	req.Write(port)
+	buf.Write(port)
 
 	// Send a ping
-	req.Write([]byte("ping"))
+	buf.Write([]byte("ping"))
 
 	// Handle the request
 	resp := &MockConn{}
-	if err := s.handleRequest(resp, req); !strings.Contains(err.Error(), "blocked by rules") {
+	req, err := NewRequest(buf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := s.handleRequest(req, resp); !strings.Contains(err.Error(), "blocked by rules") {
 		t.Fatalf("err: %v", err)
 	}
 
