@@ -1,19 +1,8 @@
 package socks5
 
-import (
-	"net"
-)
-
 // RuleSet is used to provide custom rules to allow or prohibit actions
 type RuleSet interface {
-	// AllowConnect is used to filter connect requests
-	AllowConnect(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
-
-	// AllowBind is used to filter bind requests
-	AllowBind(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
-
-	// AllowAssociate is used to filter associate requests
-	AllowAssociate(dstIP net.IP, dstPort int, srcIP net.IP, srcPort int) bool
+	Allow(req *Request) bool
 }
 
 // PermitAll returns a RuleSet which allows all types of connections
@@ -34,14 +23,15 @@ type PermitCommand struct {
 	EnableAssociate bool
 }
 
-func (p *PermitCommand) AllowConnect(net.IP, int, net.IP, int) bool {
-	return p.EnableConnect
-}
+func (p *PermitCommand) Allow(req *Request) bool {
+	switch req.Command {
+	case ConnectCommand:
+		return p.EnableConnect
+	case BindCommand:
+		return p.EnableBind
+	case AssociateCommand:
+		return p.EnableAssociate
+	}
 
-func (p *PermitCommand) AllowBind(net.IP, int, net.IP, int) bool {
-	return p.EnableBind
-}
-
-func (p *PermitCommand) AllowAssociate(net.IP, int, net.IP, int) bool {
-	return p.EnableAssociate
+	return false
 }
