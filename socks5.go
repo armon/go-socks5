@@ -43,6 +43,9 @@ type Config struct {
 	// Logger can be used to provide a custom log target.
 	// Defaults to stdout.
 	Logger *log.Logger
+
+	// Optional function for dialing out
+	Dial func(network, addr string) (net.Conn, error)
 }
 
 // Server is reponsible for accepting connections and handling
