@@ -153,8 +153,12 @@ func (s *Server) handleConnect(conn conn, req *Request) error {
 	}
 
 	// Attempt to connect
-	addr := net.TCPAddr{IP: req.realDestAddr.IP, Port: req.realDestAddr.Port}
-	target, err := net.DialTCP("tcp", nil, &addr)
+	addr := (&net.TCPAddr{IP: req.realDestAddr.IP, Port: req.realDestAddr.Port}).String()
+	dial := s.config.Dial
+	if dial == nil {
+		dial = net.Dial
+	}
+	target, err := dial("tcp", addr)
 	if err != nil {
 		msg := err.Error()
 		resp := hostUnreachable
