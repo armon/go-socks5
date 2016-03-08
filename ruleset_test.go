@@ -1,19 +1,24 @@
 package socks5
 
-import "testing"
+import (
+	"testing"
+
+	"golang.org/x/net/context"
+)
 
 func TestPermitCommand(t *testing.T) {
+	ctx := context.Background()
 	r := &PermitCommand{true, false, false}
 
-	if !r.Allow(&Request{Command: ConnectCommand}) {
+	if _, ok := r.Allow(ctx, &Request{Command: ConnectCommand}); !ok {
 		t.Fatalf("expect connect")
 	}
 
-	if r.Allow(&Request{Command: BindCommand}) {
+	if _, ok := r.Allow(ctx, &Request{Command: BindCommand}); ok {
 		t.Fatalf("do not expect bind")
 	}
 
-	if r.Allow(&Request{Command: AssociateCommand}) {
+	if _, ok := r.Allow(ctx, &Request{Command: AssociateCommand}); ok {
 		t.Fatalf("do not expect associate")
 	}
 }
