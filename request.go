@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -52,6 +53,15 @@ func (a *AddrSpec) String() string {
 		return fmt.Sprintf("%s (%s):%d", a.FQDN, a.IP, a.Port)
 	}
 	return fmt.Sprintf("%s:%d", a.IP, a.Port)
+}
+
+// Address returns a string suitable to dial; prefer returning IP-based
+// address, fallback to FQDN
+func (a AddrSpec) Address() string {
+	if 0 != len(a.IP) {
+		return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
+	}
+	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
 }
 
 // A Request represents request received by a server
@@ -158,14 +168,13 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	}
 
 	// Attempt to connect
-	addr := (&net.TCPAddr{IP: req.realDestAddr.IP, Port: req.realDestAddr.Port}).String()
 	dial := s.config.Dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
 			return net.Dial(net_, addr)
 		}
 	}
-	target, err := dial(ctx, "tcp", addr)
+	target, err := dial(ctx, "tcp", req.realDestAddr.Address())
 	if err != nil {
 		msg := err.Error()
 		resp := hostUnreachable
