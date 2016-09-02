@@ -340,11 +340,15 @@ func sendReply(w io.Writer, resp uint8, addr *AddrSpec) error {
 	return err
 }
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
 // proxy is used to suffle data from src to destination, and sends errors
 // down a dedicated channel
 func proxy(dst io.Writer, src io.Reader, errCh chan error) {
 	_, err := io.Copy(dst, src)
-	if tcpConn, ok := dst.(*net.TCPConn); ok {
+	if tcpConn, ok := dst.(closeWriter); ok {
 		tcpConn.CloseWrite()
 	}
 	errCh <- err
