@@ -191,16 +191,35 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	defer target.Close()
 
 	// Send success
-	local := target.LocalAddr
-	switch local := local.(type) {
+	laddr := target.LocalAddr()
+	var (
+		tcp *net.TCPAddr
+		udp *net.UDPAddr
+		ip  *net.IPAddr
+	)
+	switch local := laddr.(type) {
 	case *net.TCPAddr:
-		local, _ := local.(*net.TCPAddr)
+		tcp = local
 	case *net.UDPAddr:
-		local, _ := local.(*net.UDPAddr)
+		udp = local
 	case *net.IPAddr:
-		local, _ := local.(*net.IPAddr)
+		ip = local
 	}
-	bind := AddrSpec{IP: local.IP, Port: local.Port}
+
+	var bind AddrSpec
+	if tcp != nil {
+		bind.IP = tcp.IP
+		bind.Port = tcp.Port
+	} else if udp != nil {
+		bind.IP = udp.IP
+		bind.Port = udp.Port
+	} else if ip != nil {
+		bind.IP = ip.IP
+		bind.Port = ip.Port
+	} else {
+		return fmt.Error("No suitable address")
+	}
+
 	if err := sendReply(conn, successReply, &bind); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
