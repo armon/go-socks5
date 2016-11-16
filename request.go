@@ -205,6 +205,7 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		break
 	case *net.IPAddr:
 		bind.IP = local.IP
+		break
 	default:
 		return fmt.Errorf("Unknown network error for addr: %v", req.DestAddr)
 	}
