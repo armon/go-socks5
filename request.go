@@ -204,6 +204,8 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		udp = local
 	case *net.IPAddr:
 		ip = local
+	default:
+		return fmt.Errorf("Unknown network error for addr: %v", req.DestAddr)
 	}
 
 	var bind AddrSpec
@@ -215,8 +217,6 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		bind.Port = udp.Port
 	} else if ip != nil {
 		bind.IP = ip.IP
-	} else {
-		return fmt.Errorf("No suitable address: %v", req.DestAddr)
 	}
 
 	if err := sendReply(conn, successReply, &bind); err != nil {
