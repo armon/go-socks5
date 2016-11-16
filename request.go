@@ -195,7 +195,11 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	var bind AddrSpec
 
 	switch local := laddr.(type) {
-	case *net.TCPAddr, *net.UDPAddr:
+	case *net.TCPAddr:
+		bind.IP = local.IP
+		bind.Port = local.Port
+		break
+	case *net.UDPAddr:
 		bind.IP = local.IP
 		bind.Port = local.Port
 		break
