@@ -192,11 +192,6 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 
 	// Send success
 	laddr := target.LocalAddr()
-	var (
-		tcp *net.TCPAddr
-		udp *net.UDPAddr
-		ip  *net.IPAddr
-	)
 	switch local := laddr.(type) {
 	case *net.TCPAddr, *net.UDPAddr:
 		bind.IP = local.IP
