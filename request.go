@@ -198,25 +198,14 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		ip  *net.IPAddr
 	)
 	switch local := laddr.(type) {
-	case *net.TCPAddr:
-		tcp = local
-	case *net.UDPAddr:
-		udp = local
+	case *net.TCPAddr, *net.UDPAddr:
+		bind.IP = local.IP
+		bind.Port = local.Port
+		break
 	case *net.IPAddr:
-		ip = local
+		bind.IP = local.IP
 	default:
 		return fmt.Errorf("Unknown network error for addr: %v", req.DestAddr)
-	}
-
-	var bind AddrSpec
-	if tcp != nil {
-		bind.IP = tcp.IP
-		bind.Port = tcp.Port
-	} else if udp != nil {
-		bind.IP = udp.IP
-		bind.Port = udp.Port
-	} else if ip != nil {
-		bind.IP = ip.IP
 	}
 
 	if err := sendReply(conn, successReply, &bind); err != nil {
