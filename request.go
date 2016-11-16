@@ -191,8 +191,25 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	defer target.Close()
 
 	// Send success
-	local := target.LocalAddr().(*net.TCPAddr)
-	bind := AddrSpec{IP: local.IP, Port: local.Port}
+	laddr := target.LocalAddr()
+	var bind AddrSpec
+
+	switch local := laddr.(type) {
+	case *net.TCPAddr:
+		bind.IP = local.IP
+		bind.Port = local.Port
+		break
+	case *net.UDPAddr:
+		bind.IP = local.IP
+		bind.Port = local.Port
+		break
+	case *net.IPAddr:
+		bind.IP = local.IP
+		break
+	default:
+		return fmt.Errorf("Unknown network error for addr: %v", req.DestAddr)
+	}
+
 	if err := sendReply(conn, successReply, &bind); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
