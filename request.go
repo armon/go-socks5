@@ -215,9 +215,8 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		bind.Port = udp.Port
 	} else if ip != nil {
 		bind.IP = ip.IP
-		bind.Port = ip.Port
 	} else {
-		return fmt.Error("No suitable address")
+		return fmt.Errorf("No suitable address: %v", req.DestAddr)
 	}
 
 	if err := sendReply(conn, successReply, &bind); err != nil {
