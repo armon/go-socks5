@@ -3,7 +3,7 @@ package socks5
 import (
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 func TestDNSResolver(t *testing.T) {
