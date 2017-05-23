@@ -2,12 +2,11 @@ package socks5
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"os"
-
-	"golang.org/x/net/context"
 )
 
 const (
@@ -113,7 +112,7 @@ func (s *Server) Serve(l net.Listener) error {
 		if err != nil {
 			return err
 		}
-		go func(Conn) {
+		go func(net.Conn) {
 			if err := s.ServeConn(conn); err != nil {
 				errChan <- err
 			}
