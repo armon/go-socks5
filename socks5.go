@@ -107,14 +107,19 @@ func (s *Server) ListenAndServe(network, addr string) error {
 
 // Serve is used to serve connections from a listener
 func (s *Server) Serve(l net.Listener) error {
+	errChan := make(chan error)
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			return err
 		}
-		go s.ServeConn(conn)
+		go func(Conn) {
+			if err := s.ServeConn(conn); err != nil {
+				errChan <- err
+			}
+		}(conn)
+		return <-errChan
 	}
-	return nil
 }
 
 // ServeConn is used to serve a single connection.
