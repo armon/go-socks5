@@ -46,8 +46,11 @@ type Config struct {
 	// Defaults to stdout.
 	Logger *log.Logger
 
-	// Optional function for dialing out
+	// Dial is an optional function for dialing out
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
+
+	// HandleConnect is an optional function for handling SOCKS connect requests
+	HandleConnect func(ctx context.Context, conn net.Conn, req *Request) error
 }
 
 // Server is reponsible for accepting connections and handling
@@ -85,6 +88,10 @@ func New(conf *Config) (*Server, error) {
 
 	server := &Server{
 		config: conf,
+	}
+
+	if conf.HandleConnect == nil {
+		conf.HandleConnect = server.handleConnect
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)
