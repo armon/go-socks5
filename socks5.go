@@ -44,14 +44,10 @@ type Config struct {
 
 	// Logger can be used to provide a custom log target.
 	// Defaults to stdout.
-	Logger logger
+	Logger *log.Logger
 
 	// Optional function for dialing out
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
-}
-
-type logger interface {
-	Printf(message string, a ...interface{})
 }
 
 // Server is reponsible for accepting connections and handling
@@ -164,8 +160,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 
 	// Process the client request
 	if err := s.handleRequest(request, conn); err != nil {
-		err = fmt.Errorf("Failed to handle request: %v", err)
-		s.config.Logger.Printf("[ERR] socks: %v", err)
+		s.config.Logger.Printf("[INFO] waiting for jumpbox to be available...")
 		return err
 	}
 
