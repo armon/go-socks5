@@ -68,7 +68,7 @@ func TestRequest_Connect(t *testing.T) {
 
 	// Handle the request
 	resp := &MockConn{}
-	req, err := NewRequest(buf)
+	req, err := NewRequest(buf, 5)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	// Handle the request
 	resp := &MockConn{}
-	req, err := NewRequest(buf)
+	req, err := NewRequest(buf, 5)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
