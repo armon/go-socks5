@@ -1,9 +1,8 @@
 package socks5
 
 import (
+	"context"
 	"net"
-
-	"golang.org/x/net/context"
 )
 
 // NameResolver is used to implement custom name resolution
