@@ -191,9 +191,7 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	defer target.Close()
 
 	// Send success
-	local := target.LocalAddr().(*net.TCPAddr)
-	bind := AddrSpec{IP: local.IP, Port: local.Port}
-	if err := sendReply(conn, successReply, &bind); err != nil {
+	if err := sendReply(conn, successReply, addrSpecFromNetAddr(target.LocalAddr())); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
 
@@ -301,6 +299,13 @@ func readAddrSpec(r io.Reader) (*AddrSpec, error) {
 	d.Port = (int(port[0]) << 8) | int(port[1])
 
 	return d, nil
+}
+
+func addrSpecFromNetAddr(addr net.Addr) *AddrSpec {
+	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
+		return &AddrSpec{IP: tcpAddr.IP, Port: tcpAddr.Port}
+	}
+	return nil
 }
 
 // sendReply is used to send a reply message
