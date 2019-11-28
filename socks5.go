@@ -44,7 +44,7 @@ type Config struct {
 
 	// Logger can be used to provide a custom log target.
 	// Defaults to stdout.
-	Logger *log.Logger
+	Logger Logger
 
 	// Optional function for dialing out
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
