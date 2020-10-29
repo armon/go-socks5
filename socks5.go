@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
@@ -120,11 +119,10 @@ func (s *Server) Serve(l net.Listener) error {
 // ServeConn is used to serve a single connection.
 func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
-	bufConn := bufio.NewReader(conn)
 
 	// Read the version byte
 	version := []byte{0}
-	if _, err := bufConn.Read(version); err != nil {
+	if _, err := conn.Read(version); err != nil {
 		s.config.Logger.Printf("[ERR] socks: Failed to get version byte: %v", err)
 		return err
 	}
@@ -137,14 +135,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// Authenticate the connection
-	authContext, err := s.authenticate(conn, bufConn)
+	authContext, err := s.authenticate(conn, conn)
 	if err != nil {
 		err = fmt.Errorf("Failed to authenticate: %v", err)
 		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err
 	}
 
-	request, err := NewRequest(bufConn)
+	request, err := NewRequest(conn)
 	if err != nil {
 		if err == unrecognizedAddrType {
 			if err := sendReply(conn, addrTypeNotSupported, nil); err != nil {

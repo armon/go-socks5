@@ -2,12 +2,12 @@ package socks5
 
 import (
 	"fmt"
+	"golang.org/x/net/context"
 	"io"
 	"net"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/context"
+	"time"
 )
 
 const (
@@ -116,7 +116,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 }
 
 // handleRequest is used for request processing after authentication
-func (s *Server) handleRequest(req *Request, conn conn) error {
+func (s *Server) handleRequest(req *Request, conn net.Conn) error {
 	ctx := context.Background()
 
 	// Resolve the address if we have a FQDN
@@ -156,7 +156,7 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 }
 
 // handleConnect is used to handle a connect command
-func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) error {
+func (s *Server) handleConnect(ctx context.Context, conn net.Conn, req *Request) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
 		if err := sendReply(conn, ruleFailure, nil); err != nil {
@@ -188,7 +188,6 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		}
 		return fmt.Errorf("Connect to %v failed: %v", req.DestAddr, err)
 	}
-	defer target.Close()
 
 	// Send success
 	local := target.LocalAddr().(*net.TCPAddr)
@@ -196,21 +195,8 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	if err := sendReply(conn, successReply, &bind); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
+	return syncLoop(target, conn)
 
-	// Start proxying
-	errCh := make(chan error, 2)
-	go proxy(target, req.bufConn, errCh)
-	go proxy(conn, target, errCh)
-
-	// Wait
-	for i := 0; i < 2; i++ {
-		e := <-errCh
-		if e != nil {
-			// return from this function closes target (and conn).
-			return e
-		}
-	}
-	return nil
 }
 
 // handleBind is used to handle a connect command
@@ -355,10 +341,70 @@ type closeWriter interface {
 
 // proxy is used to suffle data from src to destination, and sends errors
 // down a dedicated channel
-func proxy(dst io.Writer, src io.Reader, errCh chan error) {
-	_, err := io.Copy(dst, src)
-	if tcpConn, ok := dst.(closeWriter); ok {
-		tcpConn.CloseWrite()
-	}
-	errCh <- err
+func ncp (dst net.Conn, src net.Conn) {
+
 }
+
+func syncLoop(conn1 net.Conn, conn2 net.Conn) error {
+	fmt.Println("-------------------------------------------------------------")
+	var er error
+	var buf []byte
+	var source, target string
+	var dst net.Conn
+	defer conn1.Close()
+	defer conn2.Close()
+	for {
+		nr := 0
+		dst = nil
+		buf = make([]byte, 2048)
+		_ = conn1.SetReadDeadline(time.Now().Add(time.Millisecond * 50))
+		nr, er = conn1.Read(buf)
+		if tiErr, ok := er.(net.Error); !ok || !tiErr.Timeout() {
+			dst = conn2
+			source = conn1.RemoteAddr().String()
+			target = conn2.RemoteAddr().String()
+		}
+
+		if dst == nil {
+			_ = conn2.SetReadDeadline(time.Now().Add(time.Millisecond * 50))
+			nr, er = conn2.Read(buf)
+			if tiErr, ok := er.(net.Error); !ok || !tiErr.Timeout() {
+				dst = conn1
+				source = conn2.RemoteAddr().String()
+				target = conn1.RemoteAddr().String()
+			}
+		}
+		if dst == nil {
+			continue
+		}
+		nullCount := -1
+		var nonNull []int = nil
+		if nr == 1048 {
+			nullCount = 0
+			for i := 0; i < nr; i++ {
+				if buf[i] == 0 {
+					nullCount ++
+					nonNull = append(nonNull, i)
+				}
+			}
+		}
+		fmt.Printf("Copying %d bytes from %s to %s with %d null bytes and %v non null pos\n", nr, source, target, nullCount, nonNull)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+
+			if ew != nil {
+				return ew
+			}
+			if nr != nw {
+				return io.ErrShortWrite
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				return er
+			}
+			return nil
+		}
+	}
+}
+
