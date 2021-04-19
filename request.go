@@ -1,13 +1,12 @@
 package socks5
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 const (
