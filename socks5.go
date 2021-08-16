@@ -118,6 +118,10 @@ func (s *Server) Serve(l net.Listener) error {
 	return nil
 }
 
+func (s *Server) Close() {
+	s.listener.Close()
+}
+
 // ServeConn is used to serve a single connection.
 func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
