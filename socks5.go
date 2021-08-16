@@ -55,6 +55,7 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+	listener net.Listener
 }
 
 // New creates a new Server and potentially returns an error
