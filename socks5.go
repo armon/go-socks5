@@ -3,10 +3,11 @@ package socks5
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
-	"os"
+	"sync"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -55,6 +56,9 @@ type Config struct {
 type Server struct {
 	config      *Config
 	authMethods map[uint8]Authenticator
+	listener    net.Listener
+	close       chan interface{}
+	wg          sync.WaitGroup
 }
 
 // New creates a new Server and potentially returns an error
@@ -79,12 +83,11 @@ func New(conf *Config) (*Server, error) {
 	}
 
 	// Ensure we have a log target
-	if conf.Logger == nil {
-		conf.Logger = log.New(os.Stdout, "", log.LstdFlags)
-	}
+	conf.Logger = log.New()
 
 	server := &Server{
 		config: conf,
+		close:  make(chan interface{}),
 	}
 
 	server.authMethods = make(map[uint8]Authenticator)
@@ -102,6 +105,7 @@ func (s *Server) ListenAndServe(network, addr string) error {
 	if err != nil {
 		return err
 	}
+	s.listener = l
 	return s.Serve(l)
 }
 
@@ -110,16 +114,34 @@ func (s *Server) Serve(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			return err
+			select {
+			case <-s.close:
+				log.Info("closing server")
+				return nil
+			default:
+				return err
+			}
 		}
-		go s.ServeConn(conn)
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.ServeConn(conn)
+		}()
 	}
-	return nil
+}
+
+func (s *Server) Close() {
+	log.Info("server was asked to close")
+	close(s.close)
+	s.listener.Close()
+	s.wg.Wait()
 }
 
 // ServeConn is used to serve a single connection.
 func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(time.Second * 5))
+
 	bufConn := bufio.NewReader(conn)
 
 	// Read the version byte
