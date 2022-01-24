@@ -3,12 +3,14 @@ package socks5
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 type MockConn struct {
@@ -24,6 +26,8 @@ func (m *MockConn) RemoteAddr() net.Addr {
 }
 
 func TestRequest_Connect(t *testing.T) {
+	errCh := make(chan error, 1)
+
 	// Create a local listener
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -32,19 +36,23 @@ func TestRequest_Connect(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		defer conn.Close()
 
 		buf := make([]byte, 4)
 		if _, err := io.ReadAtLeast(conn, buf, 4); err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 
 		if !bytes.Equal(buf, []byte("ping")) {
-			t.Fatalf("bad: %v", buf)
+			errCh <- err
+			return
 		}
-		conn.Write([]byte("pong"))
+		_, err = conn.Write([]byte("pong"))
+		errCh <- err
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -96,9 +104,16 @@ func TestRequest_Connect(t *testing.T) {
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %v %v", out, expected)
 	}
+	// Check server errors
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 }
 
 func TestRequest_Connect_RuleFail(t *testing.T) {
+	errCh := make(chan error, 1)
+
 	// Create a local listener
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -107,19 +122,12 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		defer conn.Close()
 
-		buf := make([]byte, 4)
-		if _, err := io.ReadAtLeast(conn, buf, 4); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		if !bytes.Equal(buf, []byte("ping")) {
-			t.Fatalf("bad: %v", buf)
-		}
-		conn.Write([]byte("pong"))
+		errCh <- fmt.Errorf("unexpected connection received")
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
@@ -165,5 +173,11 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 
 	if !bytes.Equal(out, expected) {
 		t.Fatalf("bad: %v %v", out, expected)
+	}
+	// Check server didn't receive any connection
+	select {
+	case err = <-errCh:
+		t.Fatalf("err: %v", err)
+	case <-time.After(time.Millisecond * 500):
 	}
 }
