@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -202,15 +203,30 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	go proxy(target, req.bufConn, errCh)
 	go proxy(conn, target, errCh)
 
-	// Wait
-	for i := 0; i < 2; i++ {
-		e := <-errCh
-		if e != nil {
-			// return from this function closes target (and conn).
-			return e
-		}
+	// Wait until the first error is returned by one of the connections
+	// we use errFwd to store the result of the port forwarding operation
+	// if the context is cancelled close everything and return
+	var errFwd error
+	select {
+	case errFwd = <-errCh:
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	return nil
+
+	// give a chance to terminate gracefully or timeout
+	// 0.5s is the default timeout used in socat
+	// https://linux.die.net/man/1/socat
+	timeout := time.Duration(500) * time.Millisecond
+	select {
+	case e := <-errCh:
+		if errFwd == nil {
+			errFwd = e
+		}
+	case <-time.After(timeout):
+	case <-ctx.Done():
+		errFwd = ctx.Err()
+	}
+	return errFwd
 }
 
 // handleBind is used to handle a connect command
