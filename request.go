@@ -191,19 +191,21 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 	defer target.Close()
 
 	// Send success
-	local := target.LocalAddr().(*net.TCPAddr)
-	bind := AddrSpec{IP: local.IP, Port: local.Port}
+	bind := AddrSpec{IP: net.IPv4zero, Port: 0}
+	if local, ok := target.LocalAddr().(*net.TCPAddr); ok {
+		bind = AddrSpec{IP: local.IP, Port: local.Port}
+	}
 	if err := sendReply(conn, successReply, &bind); err != nil {
 		return fmt.Errorf("Failed to send reply: %v", err)
 	}
 
 	// Start proxying
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 	go proxy(target, req.bufConn, errCh)
 	go proxy(conn, target, errCh)
 
 	// Wait
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 1; i++ {
 		e := <-errCh
 		if e != nil {
 			// return from this function closes target (and conn).
