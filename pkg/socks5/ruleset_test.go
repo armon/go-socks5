@@ -1,9 +1,8 @@
 package socks5
 
 import (
-	"testing"
-
 	"context"
+	"testing"
 )
 
 func TestPermitCommand(t *testing.T) {

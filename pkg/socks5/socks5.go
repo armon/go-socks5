@@ -2,12 +2,11 @@ package socks5
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"os"
-
-	"context"
 )
 
 const (
@@ -53,8 +52,10 @@ type Config struct {
 // Server is reponsible for accepting connections and handling
 // the details of the SOCKS5 protocol
 type Server struct {
-	config      *Config
-	authMethods map[uint8]Authenticator
+	config       *Config
+	authMethods  map[uint8]Authenticator
+	isIPAllowed  func(net.IP) bool
+	isNetAllowed func(net.IP) bool
 }
 
 // New creates a new Server and potentially returns an error
@@ -93,6 +94,11 @@ func New(conf *Config) (*Server, error) {
 		server.authMethods[a.GetCode()] = a
 	}
 
+	// Set default IP whitelist function
+	server.isIPAllowed = func(ip net.IP) bool {
+		return true // default allow all IPs
+	}
+
 	return server, nil
 }
 
@@ -117,10 +123,48 @@ func (s *Server) Serve(l net.Listener) error {
 	return nil
 }
 
+// SetIPWhitelist sets the function to check if a given IP is allowed
+func (s *Server) SetIPWhitelist(allowedIPs []net.IP) {
+	s.isIPAllowed = func(ip net.IP) bool {
+		for _, allowedIP := range allowedIPs {
+			if ip.Equal(allowedIP) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// SetIPWhitelist sets the function to check if a given IP is allowed
+func (s *Server) SetNetWhitelist(allowedNets []net.IPNet) {
+	s.isNetAllowed = func(ip net.IP) bool {
+		for _, allowedNet := range allowedNets {
+			if allowedNet.Contains(ip) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // ServeConn is used to serve a single connection.
 func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
+
+	// Check client IP against whitelist
+	clientIP, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+	if err != nil {
+		s.config.Logger.Printf("[ERR] socks: Failed to get client IP address: %v", err)
+		return err
+	}
+	ip := net.ParseIP(clientIP)
+	if s.isIPAllowed(ip) {
+		s.config.Logger.Printf("[INFO] socks: Connection from allowed IP address: %s", clientIP)
+	} else {
+		s.config.Logger.Printf("[WARN] socks: Connection from not allowed IP address: %s", clientIP)
+		return fmt.Errorf("connection from not allowed IP address")
+	}
 
 	// Read the version byte
 	version := []byte{0}

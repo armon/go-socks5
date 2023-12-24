@@ -1,9 +1,8 @@
 package socks5
 
 import (
-	"net"
-
 	"context"
+	"net"
 )
 
 // NameResolver is used to implement custom name resolution
