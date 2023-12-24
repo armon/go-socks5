@@ -5,8 +5,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/davedean/go-socks5/pkg/socks5"
+
+	"github.com/caarlos0/env/v6"
 )
 
 type params struct {
