@@ -1,0 +1,11 @@
+version: '3'
+services:
+  socks5-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: socks5-build
+    env_file: .env
+    ports:
+      - "1080:1080"
+    restart: unless-stopped

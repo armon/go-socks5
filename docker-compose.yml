@@ -1,0 +1,9 @@
+version: '3'
+services:
+
+  socks5:
+    restart: always
+    image: serjs/go-socks5-proxy
+    env_file: .env
+    ports:
+      - "1080:1080"
